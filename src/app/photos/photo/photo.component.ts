@@ -10,3 +10,8 @@ export class PhotoComponent {
   @Input() url = '';
 
 }
+/**
+ *Permite que o componente receba valores externos quando usado na forma declarativa no template de outros
+ * componentes.
+ * 
+ **/

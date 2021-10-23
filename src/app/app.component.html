@@ -1,3 +1,5 @@
-<ep-photo url="assets/everis.jpg" description="Everis"></ep-photo>
-<ep-photo url="https://blog.lg.com.br/wp-content/uploads/2019/11/tecnologia-e-ser-humano-1.png"
-          description="tecnologia"></ep-photo>
+<ep-photo
+          *ngFor="let photo of photos"
+         [url]="photo.url"
+         [description]="photo.description">
+</ep-photo>

@@ -6,6 +6,25 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
+
+  photos = [
+    {
+      url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Sultan_the_Barbary_Lion.jpg/440px-Sultan_the_Barbary_Lion.jpg',
+      description: 'Leão'
+    },
+    {
+      url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Lioness_Etosha_NP.jpg/500px-Lioness_Etosha_NP.jpg',
+      description: 'Leoa'
+    },
+    {
+      url: 'assets/everis.jpg',
+      description:'Everis'
+    },
+    {
+      url: 'https://blog.lg.com.br/wp-content/uploads/2019/11/tecnologia-e-ser-humano-1.png',
+      description:'tecnologia'
+    }
+  ];
  
 }
 
@@ -38,5 +57,13 @@ Esta convenção está disponível no site com a sua documentação. Na época d
 Existem outras convenções que veremos conforme forem aparecendo em nosso projeto. A seguir, criaremos nosso primeiro componente.
 
 Para arquivos usamos menubar.component.ts, no nome usamos MenubarComponent
+
+
+
+
+Com isso, criamos a propriedade photos, em que cada item do array é um objeto, com aquelas mesmas informações vistas anteriormente, de url e description das imagens do leão e da leoa. A partir destes dados listados, queremos criar um <ep-photo> para cada dado proveniente do array.
  *
+ *
+ *Assim, sabemos que a partir do momento em que colocarmos um novo valor em photos, o Data binding do Angular disparará a renderização da nossa tela, e então teremos acesso a todas as imagens que vêm do back end, com o qual faremos a integração em breve.
+ * 
  * */
