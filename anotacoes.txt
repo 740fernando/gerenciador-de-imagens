@@ -1,0 +1,209 @@
+/**
+ *
+ *
+ *
+ * Se abrirmos app.component.html, encontraremos o código referente à apresentação que vemos na página do navegador.Então, o Angular carregará, exibindo o primeiro componente, e seu template.Voltando a app.component.ts, o styleUrls: ['./app.component.css'] informa onde se localiza o CSS utilizado por este componente.
+
+
+/*
+    -Utilizamos {{ }} dentro de tags e [ ] para atributos
+
+    -Assim, ao salvarmos e voltarmos ao navegador, teremos o título e a imagem sendo exibidos na página.
+    O que acabamos de fazer é denominado One way data binding ("data binding unidirecional"), isto porque os
+    dados saem do componente, da fonte de dados, e vão para o template, no entanto não fazem o caminho contrário,
+    e é importante frisarmos isto.
+
+    -Reparem que, ao usarmos os colchetes, url e title se tornam expressões que o Angular sabe que precisa buscar
+    no componente ao qual o template está associado. Se deixarmos sem os colchetes, uma vez que não fazemos Data
+    binding, isto é, não avaliamos uma expressão, o valor de src será a string url, enquanto o de alt será o texto
+    title, e não o valor title.
+ 
+
+    Vamos observar a nomenclatura dos arquivos criados pelo Angular CLI, focando em app.component.ts. O nome do arquivo .ts no qual iremos programar o nosso componente é todo em lower case, ou seja, em caixa baixa, e seguido por .component. Trata-se de uma convenção que não podemos deixar de seguir.
+
+Se quiséssemos criar um menubar.component.ts e, no nome do menu utilizarmos Pascal Case, ficaria MenubarComponent, mesma definição que ocorre em Java, C# e afins. Outro exemplo é que caso o nome do componente seja calopsita, usaremos calopsita.component.ts, e o nome da classe será CalopsitaComponent.
+
+O template segue a mesma regra; o template do componente possui uma url, que precisa ser o mesmo nome do arquivo .ts, porém sua extensão é .html, claro, para deixar a identificação muito clara e bem definida. O mesmo ocorre com o arquivo .css.
+
+Esta convenção está disponível no site com a sua documentação. Na época do Angular 1, existia o padrão criado por John Papa, que abdicou de definir um padrão para a versão seguinte do Angular, e contribuiu, juntamente com outros desenvolvedores, no padrão adotado pelo site do Angular.
+
+Existem outras convenções que veremos conforme forem aparecendo em nosso projeto. A seguir, criaremos nosso primeiro componente.
+
+Para arquivos usamos menubar.component.ts, no nome usamos MenubarComponent
+
+
+
+
+Com isso, criamos a propriedade photos, em que cada item do array é um objeto, com aquelas mesmas informações vistas anteriormente, de url e description das imagens do leão e da leoa. A partir destes dados listados, queremos criar um <ep-photo> para cada dado proveniente do array.
+ *
+ *
+ *
+Tipando nossa API
+ *
+ *Assim, sabemos que a partir do momento em que colocarmos um novo valor em photos, o Data binding do Angular disparará a renderização da nossa tela, e então teremos acesso a todas as imagens que vêm do back end, com o qual faremos a integração em breve.
+ *
+ *
+ * Organizamos o código de maneira mais elegante, e o isolamos em uma camada de serviço. Conseguimos exibir as fotos, mas avançaremos um pouco e adquiriremos maturidade em termos de acesso à API. Quando a acessamos via navegador, recebemos uma lista de objetos com propriedades id, postDate, URL, e outras tantas informações que dizem respeito à cada imagem.
+
+Por ora, só estamos utilizando url e description, certo? Para provar isso, em app.component.ts, criaremos um bloco na arrow function e, no array de photos, queremos acessar o id da imagem da primeira posição. Mas ao digitarmos photos[0]., não são exibidas opções de autocomplete. Se tentarmos incluir url logo em seguida, teremos um erro de compilação.
+
+Quando o código está sendo executado, internamente ele roda como JavaScript, sem tipagem, e por isso funciona. Porém, do ponto de vista do TypeScript, esta lista é do tipo Object[], o qual não possui url ou outras propriedades além de constructor, hasOwnProperty(), isPrototypeOf(), e por aí vai.
+
+Sendo assim, não é possível exibir os dados da primeira imagem, pois utilizamos esta tipagem (Object[]). Vamos tentar trocá-la por any[]:
+
+export class AppComponent {
+
+    photos: any[] = [];
+
+    constructor(photoService: PhotoService) {
+
+        photoService
+            .listFromUser('flavio')
+            .subscribe(photos => {
+                photos[0].
+                this.photos = photos
+            });
+}COPIAR CÓDIGO
+Com a tecla "Ctrl" pressionada, e clicando em listFromUser(), acessamos o método, e indicaremos que seu retorno será do tipo any[]:
+
+listFromUser(userName: string) {
+    return this.http
+        .get<any[]>(API + '/flavio/photos');
+}COPIAR CÓDIGO
+Voltaremos a app.component.ts, e o autocomplete em photos[0].description continua não funcionando, mas o seu acesso sim. Ou seja, não há mais erro de compilação. E como usamos any[], o tipo poderá ser qualquer um. Incluiremos um console.log() no código, salvaremos, voltaremos ao navegador, abriremos o console, em que encontraremos "Farol iluminado", descrição da primeira imagem.
+
+photoService
+    .listFromUser('flavio')
+    .subscribe(photos => {
+        console.log(photos[0].description);
+        this.photos = photos
+    });COPIAR CÓDIGO
+Resolvemos o nosso problema? Mais ou menos, porque se digitarmos descript em vez de description, o TypeScript não acusará erro, e no console será lido simplesmente "undefined". Além disso, também perdemos o autocomplete ao desenvolvermos a aplicação.
+
+Para corrigirmos isto, tiparemos o retorno da API. Em photo.service.ts informamos que o retorno é do tipo any[], porém trocaremos para Photo[], com propriedades específicas. Então, na pasta "photo", junto ao serviço, criaremos o arquivo photo.ts, que não será um componente, tampouco uma classe, e sim uma interface chamada Photo.
+
+No conceito do TypeScript, a ideia da interface tem a ver com encaixes específicos, e incluiremos nela todas as propriedades dos objetos retornados na lista da API, e atribuiremos um tipo para cada uma delas:
+
+export interface Photo {
+    id:number;
+    postDate:Date;
+    url:string;
+    description:string;
+    allowComments:boolean;
+    likes:number;
+    comments:number;
+    userId:number;
+}COPIAR CÓDIGO
+A interface não diz em nenhum momento quais dados precisam estar em cada uma destas propriedades, e sim o shape, a forma que um objeto deve ter.
+
+Em photo.service.ts, importaremos Photo[] clicando no ícone de lâmpada, e o dado será tratado como um array deste tipo. Nisto, app.component.ts começará a dar erro, pois quando acessamos a posição 0 do array, veremos que não existe a propriedade descript.
+
+Com isso, ficamos menos suscetíveis a erros corriqueiros ao acessarmos estas propriedades, pois as padronizamos e tipamos, e somos mais produtivos com o autocomplete. Caso a API mude, a aplicação deixará de funcionar, pois o TypeScript não irá prevenir isso, apenas receberá os dados e tentará tratá-los, sem conseguir acessá-los.
+
+Se o acesso do retorno da API ocorre em inúmeros locais, poderemos abrir a interface, clicar com o botão direito na propriedade alterada, escolher a opção "Rename Symbol", digitar o novo nome e pressionar "Enter". Assim, modificamos o nome da propriedade em todos os locais em que é acessada.
+
+O código de photoService em app.component.ts ficará da seguinte forma:
+
+photoService
+    .listFromUser('flavio')
+    .subscribe(photos => this.photos = photos);
+
+
+  CICLO DE VIDA DE UM COMPONENTE
+
+    Antes de terminarmos a aula, há mais uma melhoria que podemos aplicar. Atualmente, buscamos as imagens e acessamos a API no constructor da classe AppComponent. O que acontece quando o componente é construído? Inicialmente o Angular cria uma instância de AppComponent, e depois aplica o decorator @Component para tornar esta instância em um componente efetivamente.
+
+A maneira como organizamos nosso código funciona, mas podemos padronizá-lo mantendo o constructor apenas para injeção de dependência, e qualquer lógica que queiramos executar será colocada em uma fase do ciclo de vida que todo componente Angular possui.
+
+Todo componente Angular possui um ciclo de vida, e focaremos agora em ngOnInit ou, abreviando, OnInit. Se passarmos o mouse sobre este método da maneira em que está em app.component.ts, nada será retornado, e por isso ele é void. Moveremos o código de photoService para ngOnInit(), mas sabemos que este código não funcionará, pois o photoService é acessível somente no constructor, sendo preciso acessá-lo como propriedade de classe. Para tal, usaremos private:
+
+constructor(private photoService: PhotoService) { }
+
+ngOnInit(): void {
+
+    this.photoService
+        .listFromUser('flavio')
+        .subscribe(photos => this.photos = photos);
+}COPIAR CÓDIGO
+No Java, não é necessário incluir this, mas em JavaScript e TypeScript, usamos ele para acessar a propriedade de uma classe. Salvaremos, voltaremos ao navegador, e tudo continua funcionando bem. A fase OnInit ocorre depois da instanciação de AppComponent, e depois do componente receber as inbound properties.
+
+O mais importante, agora, é que este método nos salvará em algumas situações, mas por enquanto queremos convencionar e usar o construtor apenas para injeção de dependência, e qualquer código de inicialização de configuração será feito no ngOnInit. Porém, se escrevermos o método errado, não temos erro de compilação. No entanto, quando retornarmos ao navegador, nada é exibido.
+
+Isso ocorre porque ao tratá-lo como um componente, o Angular espera encontrar o método ngOnInit() exatamente desta forma, ignorando e deixando de chamá-lo caso ele não seja encontrado. Seria melhor se o TypeScript pudesse nos avisar caso tenhamos algum erro deste tipo.
+
+Podemos voltar o código para a maneira como estava antes de colocarmos o método e, logo após AppComponent, incluir implements OnInit e pressionar "Enter". O programa então fará a importação da interface OnInit de angular/core, que permitirá a definição da forma de um objeto para que possamos tratá-la de maneira tipada, além do uso do autocomplete, entre outros.
+
+No entanto, uma interface também nos obriga a usar determinados métodos, então, quando implementamos a interface OnInit e passamos a mouse por cima, o programa diz que está faltando ngOnInit() na nossa classe. Ao clicarmos em AppComponent, no ícone de lâmpada, e então em "Implement interface 'OnInit'", o Angular inclui automaticamente o método ngOnInit(). O nosso código continua compilando, porém ao rodarmos a aplicação teremos um problema, já que o método lança uma exceção.
+
+Assim, moveremos o código de photoService usando a tecla "Alt" junto com as setas para cima ou para baixo, para dentro do método. Em seguida, moveremos todo o método para após o constructor, por convenção, e tornaremos photoService privada. Incluiremos this antes de photoService, e então poderemos salvar o arquivo.
+
+import { Component, OnInit } from '@angular/core';
+
+import { PhotoService } from './photos/photo/photo.service';
+
+@Component({
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.css']
+})
+export class AppComponent implements OnInit{
+
+
+    photos: any[] = [];
+
+    constructor(private photoService: PhotoService) { }
+
+    ngOnInit(): void {
+
+        this.photoService
+            .listFromUser('flavio')
+            .subscribe(photos => this.photos = photos);
+    }
+}COPIAR CÓDIGO
+Desta vez, se digitarmos algo errado, a classe não irá compilar, e nenhuma alteração do projeto será vista enquanto o ngOnInit() não for implementado. Salvaremos, voltaremos ao navegador, e tudo continuará funcionando conforme esperado. O Angular possui outros ciclos de vida, mas por enquanto vimos este para convencionar que o constructor será destinado à injeção de dependência, e qualquer inicialização que queiramos fazer posteriormente será no ngOnInit().
+
+Por fim, acessando a definição da classe photoService (clique com "Ctrl"), sabemos que ela depende de um HttpClient, e para que ele esteja disponível, o app.module.ts faz a importação de HttpClientModule. Mas se pararmos para pensar, quem depende disso é app.module.ts ou photos.module.ts? Porque se photo.service.ts pertence a photos.module.ts, a ideia é que o segundo forneça o HttpClient de que necessita.
+
+Caso HttpClient não esteja em app.module.ts, a aplicação não irá funcionar. Então, garantimos que a dependência necessária para este módulo funcionar esteja em photos.module.ts, e por isso incluiremos a linha imports: [ HttpClientModule ] em @NgModule, e removeremos HttpClientModule e a linha referente ao seu import em app.module.ts.
+
+Salvaremos, voltaremos à aplicação, e tudo continua funcionando como antes. A grande questão é que se pegarmos a pasta photos.module.ts, ela importará tudo que for necessário para que seus componentes funcionem e, agora, sim, ela depende de HttpClientModule.
+
+
+BROWSER MODULE E COMMON MODULE
+
+
+Vamos continuar! Ao abrirmos o projeto, a aplicação é carregada pela primeira vez, o AppComponent é exibido e, como ele não tem nada no template, a página do navegador está em branco. Em teoria, isto não implica em erro algum. Entretanto, se consultarmos o console do navegador, há a acusação de "Template parse errors", e que ngForOf (o mesmo que *ngFor) não é uma propriedade conhecida de app-photo.
+
+Apesar de photo-list.component.html não ter sido carregado, o Angular verificará a integridade do template e do componente no processo de compilação. Por que o Angular acha que *ngFor é uma propriedade do componente?
+
+Não tínhamos este erro quando o nosso componente de imagens era acessado pelo PhotoComponent, cujo principal módulo aplicação importa BrowserModule, que traz todas as diretivas além de outras necessidades do Angular para que a aplicação rode no navegador.
+
+Então, a diretiva *ngFor é carregada por meio deste BrowserModule. As diretivas estão disponíveis para app.module.ts e todos os seus componentes, que no caso é apenas AppComponent, e em nenhum momento há importação de diretivas do Angular para usarmos em photos.module.ts.
+
+Não podemos, em hipótese alguma, importar um BrowserModule em outro local que não seja o módulo principal da aplicação. Porque além das diretivas padrão do Angular, o BrowserModule traz uma série de outros recursos para a aplicação funcionar.
+
+De que forma, então, teremos acesso à diretiva *ngFor em outros módulos, já que não poderemos importar BrowserModule?
+
+A boa notícia é que, internamente, o BrowserModule possui especificidades que fazem a aplicação rodar no navegador, e também importa um módulo denominado CommonModule. É ele que possui as declarações das diretivas, e por aí vai. Sendo assim, em imports de photos.module.ts, incluiremos CommonModule, cuja importação automática do Angular colocaremos no primeiro conjunto de importes, seguindo nossas convenções:
+
+import { NgModule } from '@angular/core';
+import { HttpClientModule } from '@angular/common/http';
+import { CommonModule } from '@angular/common';
+
+//imports dos componentes PhotoComponent e PhotoListComponent
+
+@NgModule({
+    declarations: [
+        PhotoComponent,
+        PhotoListComponent
+    ],
+    imports: [
+        HttpClientModule,
+        CommonModule
+    ]
+})
+export class PhotosModule {}COPIAR CÓDIGO
+Salvaremos e voltaremos ao navegador, que não exibe nada; o erro, porém, deixa de existir.
+
+Todo módulo a ser criado deverá ser importado como module; trata-se de uma boa prática para tornar as diretivas do Angular, como *ngFor e outras, disponíveis.
+ */
