@@ -245,4 +245,47 @@ listFromUser(userName: string) {
 }COPIAR CÓDIGO
 Salvaremos todas as alterações e, quando acessarmos a rota passando almeida, o userName, que é o segmento da rota, o receberá. Extrairemos este valor, passando-o ao método listFromUser(), o qual o concatenará para montar a URL dinâmica. É deste modo que conseguimos ter um segmento de rotas parametrizado e, em um componente, por meio de activatedRoute, conseguimos acessar o valor que foi passado à rota.
 
+Implementando a lógica do Grid
 
+
+Precisamos entender que nosso template (photos.component.html) não pode se basear na lista de imagens recebidas, e sim em uma lista de dados que criaremos e começará em branco. Sabemos que se não tiparmos, este array será any[]. Precisaremos adequar esta estrutura para uma nova, com um array cujo limite de itens será 3. Assim, cada array corresponderá a uma linha com 3 colunas.
+
+Em photos.component.ts, teremos:
+
+@Input() photos: Photo[] = [];
+rows: any[] = [];COPIAR CÓDIGO
+Neste sentido, em photos.component.html definiremos como row a nossa <li>. Isto porque a primeira lista será composta de três imagens, a segunda também, e por aí vai. E não iteraremos mais de photos, mas sim de rows. Também incluiremos uma <div> de classe col-4, pois queremos 3 itens para totalizar 12, e assim utilizarmos todo o grid do Bootstrap.
+
+No entanto, não precisaremos fazê-lo para cada item da coluna, então teremos outro *ngFor dentro deste. A diferença é que neste iteraremos de cols, e trocaremos cols de "let cols of" por photo:
+
+<ol class="list-unstyled">
+    <li *ngFor="let cols of rows" class="row">
+        <div *ngFor="let photo of cols" class="col-4">
+            <ap-photo
+                [url]="photo.url"
+                [description]="photo.description">
+            </ap-photo>
+        </div>
+    </li>
+</ol>COPIAR CÓDIGO
+Falta implementarmos a lógica para a construção da lista rows de photos.component.ts. Em ngOnInit() indicaremos que this.rows receberá o resultado de this.groupColumns(), um método a ser criado e que recebe a lista de photos. Criaremos um array chamado newRows que começa vazio, e sabemos que teremos que retorná-lo em algum momento.
+
+Faremos uma iteração de 3 em 3, então utilizaremos um for:
+
+ngOnInit() {
+    this.rows = this.groupColumns(this.photos);
+}
+
+groupColumns(photos: Photo[]) {
+    const newRows = [];
+
+    for(let index = 0; index < photos.length; index+=3) {
+        newRows.push(photos.slice(index, index + 3));
+    }
+    return newRows;
+}COPIAR CÓDIGO
+Isso é um exemplo clássico — quando se quer resolver um problema, o One framework não ajuda em nada, sendo necessário aplicar uma lógica de JavaScript e, claro, conhecer esta linguagem.
+
+O slice() sempre recebe a posição inicial que queremos considerar, e a final não inclusiva, "fatiando" o array. Ou seja, quando o primeiro index é 0, o outro vale 3, e o slice() pegará a fatia de 0 a 2. Esta segunda posição não é inclusiva, e se tivéssemos colocado a posição final como 2, seriam pegos 0 e 1, por isto utilizamos index + 3. Na passada seguinte, o primeiro index será 3, e o final, 6, sendo pegos 3, 4 e 5.
+
+Não há problema se no final sobrarem dois ou apenas um elemento, pois o slice() só trará a quantidade existente. Vamos testar? No navegador, nada é exibido, e no console não há nenhuma mensagem de erro. Ao começarem a criar componentes no Angular, muitas pessoas passam por esta dificuldade, e trataremos dela a seguir.
