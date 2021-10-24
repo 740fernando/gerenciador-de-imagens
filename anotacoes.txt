@@ -206,4 +206,43 @@ export class PhotosModule {}COPIAR CÓDIGO
 Salvaremos e voltaremos ao navegador, que não exibe nada; o erro, porém, deixa de existir.
 
 Todo módulo a ser criado deverá ser importado como module; trata-se de uma boa prática para tornar as diretivas do Angular, como *ngFor e outras, disponíveis.
- */
+
+
+Segmentos de rotas
+
+Ainda sobre rotas, temos um ponto interessante em nossa aplicação: se acessarmos localhost:4200/user/flavio, significa que queremos ir à nossa API, em photo-list.component.ts, e exibir as imagens referentes a este cadastro. No entanto, queremos que, ao digitarmos localhost:4200/user/almeida, isto é, utilizarmos outro usuário, também seja uma rota válida para o Angular.
+
+Portanto, precisaremos passar o nome da URL para o PhotoService. Buscamos, então, uma rota parametrizada, que não dependa de URLs fixas, variando de acordo com o usuário cadastrado. Da maneira em que está, se tentarmos qualquer outro usuário, cairemos na página de erro.
+
+Em AppRoutingModule, queremos tornar este segmento da URL uma variável, algo genérico, como se funcionasse como um coringa. Para tal, basta colocarmos :userName no lugar de flavio:
+
+const routes: Routes = [
+    { path: 'user/:userName', component: PhotoListComponent },
+    { path: 'p/add', component: PhotoFormComponent },
+    { path: '**', component: NotFoundComponent }
+];COPIAR CÓDIGO
+Com isso, embora o sistema de rotas não aceite erros de digitação em "user" na barra de endereços, passará a aceitar qualquer usuário. Isso significa que a rota pode ser localhost:4200/user/ seguido de qualquer userName para ser válida. O mais importante neste momento é que queremos ter acesso a este parâmetro da rota no componente, para passarmos ao nosso serviço, porque não faz sentido passarmos almeida como userName na barra de endereços do navegador, mas estar flavio em ngOnInit(), em photo-list.component.ts.
+
+Usaremos uma ferramenta do Angular, disponibilizada pelo próprio serviço (módulo) de rotas. Em photo-list.component.ts recebemos photoService no construtor, e queremos activatedRoute, o qual indica a rota ativada em determinado momento. Em ngOnIt(), incluiremos const userName = this.activatedRoute.snapshot.params.userName, cujo snapshot equivale a uma fotografia do momento desta rota:
+
+constructor(
+    private photoService: PhotoService,
+    private activatedRoute: ActivatedRoute
+) { }
+
+ngOnInit(): void {
+
+    const userName = this.activatedRoute.snapshot.params.userName;
+    this.photoService
+        .listFromUser(userName)
+        .subscribe(photos => this.photos = photos);
+}COPIAR CÓDIGO
+Clicaremos em listFromUser no trecho acima para acessarmos photo.service.ts, em que substituiremos flavio, e deixaremos o código assim:
+
+listFromUser(userName: string) {
+    return this.http
+        .get<Photo[]>(API + '/' + userName + '/photos');
+}COPIAR CÓDIGO
+Salvaremos todas as alterações e, quando acessarmos a rota passando almeida, o userName, que é o segmento da rota, o receberá. Extrairemos este valor, passando-o ao método listFromUser(), o qual o concatenará para montar a URL dinâmica. É deste modo que conseguimos ter um segmento de rotas parametrizado e, em um componente, por meio de activatedRoute, conseguimos acessar o valor que foi passado à rota.
+
+
