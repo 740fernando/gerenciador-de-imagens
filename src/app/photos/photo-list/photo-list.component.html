@@ -1,1 +1,14 @@
-<ep-photos [photos]="photos"></ep-photos>
+<h1 style="background: red" appDarkOnHover brihtness="5%" >Photos</h1>
+<ep-search
+           (onTyping)="filter = $event" [value]="filter">
+</ep-search>
+<ep-photos
+           [photos]="photos | filterByDescription : filter">
+</ep-photos>
+
+<ep-load-button
+                (click)="load()"
+                [hasMore]="hasMore">
+</ep-load-button>
+
+

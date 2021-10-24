@@ -29,3 +29,12 @@ export class PhotosComponent implements OnChanges {
   }
 
 }
+/**
+ *Métodos de uma interface deve ser implementados, caso contrário haverá um erro de compilação.
+ *
+ * Um objeto do tipo SimpleChanges possui uma propriedade de mesmo nome da inbound property que sofreu mudança.
+ *
+ * O método ngOnChanges, quando chamado pelo próprio framework, recebe como parâmetro uma instância de SimpleChanges
+    É através da instância de SimpleChanges que conseguimos saber sobre as mudanças ocorridas nas inbound properties do component.
+    
+ **/

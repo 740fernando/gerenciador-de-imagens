@@ -289,3 +289,735 @@ Isso é um exemplo clássico — quando se quer resolver um problema, o One fram
 O slice() sempre recebe a posição inicial que queremos considerar, e a final não inclusiva, "fatiando" o array. Ou seja, quando o primeiro index é 0, o outro vale 3, e o slice() pegará a fatia de 0 a 2. Esta segunda posição não é inclusiva, e se tivéssemos colocado a posição final como 2, seriam pegos 0 e 1, por isto utilizamos index + 3. Na passada seguinte, o primeiro index será 3, e o final, 6, sendo pegos 3, 4 e 5.
 
 Não há problema se no final sobrarem dois ou apenas um elemento, pois o slice() só trará a quantidade existente. Vamos testar? No navegador, nada é exibido, e no console não há nenhuma mensagem de erro. Ao começarem a criar componentes no Angular, muitas pessoas passam por esta dificuldade, e trataremos dela a seguir.
+
+
+Binding de eventos
+
+
+Vamos melhorar a experiência do usuário em nossa aplicação. Atualmente temos 12 imagens em exibição na página; e se futuramente tivermos 100, 200? Seria interessante darmos ao usuário a opção de filtrar, por exemplo. Sabemos que cada objeto utilizado para a construção destes componentes possui a propriedade description, a ideia é colocarmos um campo de filtro no qual digitaremos parte do texto que está nesta descrição, e todas as imagens que a possuírem serão exibidas, enquanto as demais serão omitidas da página.
+
+Em photo-list.component.html, que envolve o componente que traz os dados e os disponibiliza para photos.component.html, componente que os renderiza usando o grid do Bootstrap, acrescentaremos o seguinte trecho:
+
+<div class="text-center mt-3 mb-3">
+    <form>
+        <input
+            class="rounded"
+            type="search"
+            placeholder="search..."
+            autofocus>
+    </form>
+</div>COPIAR CÓDIGO
+Com isso, o <input> ficará centralizado na <div> e terá bordas arredondadas (rounded), será do tipo search, e possuirá foco assim que a página for carregada. E as classes mt-3 e mb-3 implicam nas margens de topo e de baixo, ambas com valor 3, valor arbitrário do Bootstrap. Salvaremos e voltaremos ao navegador, com o campo de busca implementado, porém ainda não pronto para uso.
+
+De que maneira capturaremos o dado digitado neste campo de busca? E depois, como será realizada a filtragem deste valor? Em algum momento sabemos que este valor deverá cair em uma propriedade de PhotoListComponent, portanto criaremos em photo-list.component.ts a propriedade filter, do tipo string, que começa inicializada com uma string em branco. À medida em que formos digitando no input do navegador, o valor será atribuído a esta propriedade.
+
+Qual é o evento do JavaScript podemos trabalhar para lidar com isso? Uma das opções é o keyup, disparado à medida em que digitamos. Para entendermos melhor, vamos supor que trabalhamos com JavaScript puro, e sem arrow function para facilitar a legibilidade:
+
+h1.addEventListener('keyup', function(event) {
+    alert('oi')
+});COPIAR CÓDIGO
+Com este código, a cada valor digitado pelo usuário no h1, acessado em DOM, será exibido um alerta. Por meio do event conseguimos acessar o valor de alert('oi'), sendo possível utilizarmos event.target.value para saber o que foi digitado.
+
+Voltando ao código que estávamos escrevendo, indicaremos em keyup que filter receberá $event.target.value, o que se assemelha ao JavaScript puro que usamos de exemplo, com a diferença de que, no lugar de event, usamos $event do Angular, tratado e modificado.
+
+<form>
+    <input
+        class="rounded"
+        type="search"
+        placeholder="search..."
+        autofocus
+        keyup="filter = $event.target.value"
+    >
+</form>COPIAR CÓDIGO
+Então, a cada valor que for digitado no campo de busca, o valor do input será acessado usando-se a propriedade filter. No entanto, nada acontecerá, pois se mantermos o código assim, o Angular entenderá que estamos usando a string filter = $event.target.value dentro do evento keyup.
+
+Já aprendemos que existe um tal de Data binding, então podemos supor que usar [keyup]="filter = $event.target.value" resolverá nosso problema, o que também não é o caso, já que este Data binding buscará a expressão entre aspas no componente, e este atributo não existe.
+
+Para resolvermos isso, precisaremos realizar um Data binding que é um Event binding. Isto, no Angular, é feito colocando-se o nome do evento entre parênteses — (keyup)="filter = $event.target.value". Ou seja, para o evento keyup, a expressão "filter = $event.target.value" será avaliada.
+
+Porém, esta associação de eventos se difere ao uso de colchetes, como em um Data binding regular, cujo dado vem da fonte de dados (componente) para o template, nunca o caminho inverso. Já quando utilizamos os parênteses, fazemos exatamente o oposto, isto é, o evento é disparado, indo da view do template para o componente.
+
+É importante entendermos que estes bindings são unidirecionais, cada qual percorrendo um caminho diferente. Vamos salvar o projeto, abrir a página no navegador, consultar o console, em que não teremos nenhum erro. E para nos assegurarmos de que o campo de busca captura o termo digitado, incluiremos uma Expression language para a propriedade filter.
+
+O código de photo-list.component.html ficará assim:
+
+<div class="text-center mt-3 mb-3">
+    <form>
+        <input
+            class="rounded"
+            type="search"
+            placeholder="search..."
+            autofocus
+            (keyup)="filter = $event.target.value"
+            >
+    </form>
+</div>
+{{ filter }}
+<ap-photos [photos]="photos"></ap-photos>COPIAR CÓDIGO
+Ao salvarmos tudo, voltarmos ao navegador e digitarmos "calopsita" (ou qualquer outro termo), à medida em que vamos digitando, a palavra vai se formando no layout antes da exibição das imagens. Deste modo temos certeza de que tudo está sendo adicionado por meio do binding de evento, e modificado no filter, atualizado conforme nossa digitação.
+
+Quando abrimos a aplicação, um Data binding unidirecional ocorre, de filter para o template, e nada é exibido. Para que isso fique claro, podemos atribuir um valor inicial (flavio) temporariamente em filter: string = 'flavio' de photo-list.component.ts, e reabrir a página, e teremos "flavio" sendo exibido antes das imagens.
+
+Agora, precisamos usar o valor que está no filter para de fato filtrarmos a lista. Faremos isto a seguir!
+
+Pipe e implementação
+
+Precisaremos usar o valor digitado no campo de busca para filtrar a lista de imagens. Antes disso, vamos fazer uma introdução ao que chamamos, no Angular, de Pipes. Em photo-list.component.ts criaremos uma propriedade temporária nome = 'flavio', apenas para efeito de teste, logo acima da parte de constructor.
+
+E em photo-list.component.html, incluiremos antes das tags <ap-photos> um Data binding para nome, com {{ nome }}. Salvaremos, voltaremos ao navegador e veremos "flavio" acima das imagens. Caso queiramos este texto em caixa alta, poderíamos alterar o dado, mas sabemos que esta parte de estilização tem a ver com o template, a camada de visualização.
+
+O Angular nos permite incluirmos um Pipe. Em photo-list.component.html deixaremos assim:
+
+{{ nome | uppercase }}COPIAR CÓDIGO
+O uppercase é uma espécie de transformação pela qual nome passará, por meio de |, que serve de "tubo de passagem". Com esta alteração, após salvarmos e voltarmos ao navegador, o nome passará a ser exibido em caixa alta.
+
+Podemos aplicar Pipes em expressões, e existem vários feitos para Angular. No entanto criaremos o nosso, pois queremos aplicar um Pipe denominado filterByDescription em photos, o qual precisará levar o filter em consideração, e por isto o incluiremos após o Pipe. Em photo-list.component.html:
+
+<ap-photos [photos]="photos | filterByDescription: filter"></ap-photos>COPIAR CÓDIGO
+Se tentarmos traduzir o trecho acima, o Pipe filterByDescription recebe dois parâmetros, a lista de imagens (photos) e o critério (filter). Se salvarmos o arquivo da maneira em que está e abrirmos o navegador, nada é exibido. No console, encontramos um erro indicando que o filterByDescription não é encontrado. É claro, pois ainda não o implementamos.
+
+Como este filtro está muito atrelado a photos, à própria listagem de imagens, criaremos em "photo-list" o arquivo filter-by-description.pipe.ts. Para que seja um Pipe, é necessário utilizarmos um Decorator, que será automaticamente importado, e que possui a propriedade name, informando o nome do filtro para esta classe específica, exatamente o mesmo que existe em photo-list.component.html.
+
+A classe FilterByDescription precisa implementar um método transform(), com a lógica de aplicação do Pipe, mas em vez de digitarmos o método, implementaremos PipeTransform, com auto import. Com isto, clicaremos em FilterByDescription e no ícone de lâmpada para implementarmos a interface.
+
+Teremos:
+
+import { Pipe, PipeTransform } from '@angular/core';
+
+@Pipe({ name: 'filterByDescription'})
+export class FilterByDescription implements PipeTransform {
+    transform(value: any, ...args: any[]) {
+        throw new Error('Method not implemented.');
+    }
+}COPIAR CÓDIGO
+O primeiro parâmetro do método transform() é sempre aquilo em que queremos aplicar a transformação. No caso, value será a lista de imagens, portanto será substituído por photos, e aproveitaremos para trocar o tipo any para Photo[], o qual importaremos. ...args: any[] é um array com todos os parâmetros que forem passados. E já que temos apenas um parâmetro, não o colocaremos como sendo um array, e o chamaremos de descriptionQuery, que será do tipo string.
+
+Precisaremos retornar o mesmo tipo de dado de photos: Photo[]. Indicaremos que descriptionQuery receberá o seu valor, o qual chama trim(), para a invalidação da digitação de espaços em branco, e o passaremos a toLowerCase(), para deixar em letras minúsculas e assim conseguirmos comparará-lo com a descrição, pois ambos estarão em caixa baixa.
+
+Então, testaremos se (if) há descriptionQuery, caso positivo, queremos a filtragem, se não, retornaremos o próprio array de photos. Usaremos filter(), do JavaScript para solicitar que, para cada imagem, tenhamos sua description. Deixaremos em minúsculo, e verificaremos se o que foi digitado faz parte desta string.
+
+import { Pipe, PipeTransform } from '@angular/core';
+import { Photo } from '../photo/photo';
+
+@Pipe({ name: 'filterByDescription'})
+export class FilterByDescription implements PipeTransform {
+
+    transform(photos: Photo[], descriptionQuery: string) {
+        descriptionQuery = descriptionQuery
+            .trim()
+            .toLowerCase();
+
+        if(descriptionQuery) {
+            return photos.filter(photo =>
+                photo.description.toLowerCase().includes(descriptionQuery)
+            );
+        } else {
+            return photos;
+        }
+    }
+}COPIAR CÓDIGO
+Salvaremos, voltaremos ao navegador e encontramos o mesmo erro indicando que filterByDescription não pode ser encontrado. Um Pipe também precisa ser declarado, assim como componentes, portanto, em photos.module.ts, incluiremos FilterByDescription em declarations. Agora, sim, ao salvarmos, tudo estará funcionando bem no navegador, com as imagens sendo filtradas de acordo com o que for digitado no campo de busca.
+
+Agora, queremos exibir uma mensagem para quando o usuário digitar algum termo que não pode ser filtrado por não existir dentre as descrições. Atualmente isto faz com que a tela fique simplesmente em branco. Para exibirmos uma tela mais amigável, voltaremos ao template, photos.component.html, componente que faz a listagem, e colaremos o seguinte parágrafo no início do código:
+
+<p class="text-center text-muted">
+    Sorry, no photos
+</p>COPIAR CÓDIGO
+No Bootstrap, text-muted se refere à fonte de corpo um pouco menor, em tom acinzentado. Da maneira em que está, porém, a mensagem é fixa na página, sendo que ela deverá surgir apenas se não houver nenhuma imagem a ser mostrada. Usaremos a diretiva *ngIf, que espera avaliar uma expressão como verdadeira ou falsa. Já que em photos.component.ts há um Data binding para photos, indicaremos que se o comprimento (length) deste for 0, exibiremos a mensagem — sabemos que em JavaScript 0 é falso, enquanto qualquer outro número é considerado verdadeiro.
+
+Salvaremos a alteração abaixo e voltaremos ao navegador.
+
+<p class="text-center text-muted" *ngIf="!photos.length">
+    Sorry, no photos
+</p>COPIAR CÓDIGO
+Desta vez tudo funcionará conforme esperado, e continuamos melhorando a experiência do usuário.
+
+Resolvers
+
+Nosso filtro está funcionando como gostaríamos, porém há um detalhe a respeito da última mensagem que implementamos, "Sorry, no photos", que apenas alguém mais atento conseguirá notar. Ao recarregarmos a página, a mensagem é exibida durante alguns poucos segundos, antes da listagem ser carregada. Isso é meio estranho, não?
+
+Não fizemos uma requisição à API para que os dados das imagens fossem trazidos? Sendo assim, esta mensagem deveria aparecer somente em decorrência do filtro. Isso pode acabar deixando o usuário frustrado, ainda mais se for uma operação que pode acabar demorando.
+
+Em photo-list.component.ts, a lista de imagens começa com um array vazia (photos: Photo[] = []), então, quando o componente é carregado, a lista será considerada no *ngIf e a mensagem será exibida. Depois, na inicialização ngOnInit(), os dados serão trazidos da API e colocados na propriedade photos, que então terá dados, fazendo com que a mensagem deixe de ser exibida.
+
+O problema é que a busca destes dados está sendo feita no componente, então, para que a mensagem não apareça, o ideal é que o componente receba a lista de imagens pronta antes de navegarmos a ele. Em suma, entraremos na rota e, antes do componente ser criado e renderizado, resolveremos e disponibilizaremos os dados de que ele precisa. Deste modo, o componente receberá os dados prontos, sem precisar buscá-los, e o array de imagens será preenchido.
+
+Podemos resolver este tipo de problema com o Angular, por meio do Resolver, capaz de lidar com dados durante a navegação de uma rota para disponibilizá-los a um componente antes deste ser carregado.
+
+Por estar muito atrelado ao "photo-list", criaremos nosso arquivo nesta pasta, e o chamaremos de photo-list.resolver.ts. Precisamos do serviço PhotoService no construtor desta classe para resolvermos esta dependência. E sabemos que, para ser injetável, termos acesso ao PhotoService e podermos utilizar o Resolver, teremos um @Injectable().
+
+Para ser um Resolver, a classe precisará implementar a interface Resolve, genérica, e que devolverá o tipo de dado retornado pelo listFromUser(), um Observable<Photo[]>. Ambos precisarão ser importados. Para conseguirmos trabalhar com o PhotoListResolver, implementaremos o método resolve(), e o Visual Studio está se recusando a adicioná-lo automaticamente, mas não tem problema, faremos isto manualmente.
+
+Como parâmetro, este método receberá ActivatedRouteSnapshot, que tirará um screenshot do que estiver acontecendo no momento, e um state, RouterStateSnapshot. Teremos uma variável const userName, cujo resultado será route.params.userName. Depois, usaremos o return com this.service.listFromUser().
+
+import { Injectable } from '@angular/core';
+import { Resolve, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { Observable } from 'rxjs';
+
+import { PhotoService } from '../photo/photo.service';
+import { Photo } from '../photo/photo';
+
+@Injectable({ providedIn: 'root'})
+export class PhotoListResolver implements Resolve<Observable<Photo[]>>{
+
+    constructor(private service: PhotoService) {}
+
+    resolve(route: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
+        const userName = route.params.userName;
+        return this.service.listFromUser(userName);
+    }
+
+}COPIAR CÓDIGO
+Assim, se passarmos o mouse sobre resolve(), será indicado que o retorno é do tipo Observable<Photo[]>, o que também pode ser explicitado usando-se dois pontos:
+
+resolve(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<Photo[]> {
+  const userName = route.params.userName;
+  return this.service.listFromUser(userName);
+}COPIAR CÓDIGO
+Entretanto, ainda precisaremos acessar o arquivo de rotas, app.routing.module.ts. Como o Resolver é acionado no momento em que a rota está sendo resolvida, é ali que se encontra sua configuração. Portanto, incluiremos resolve passando um objeto JavaScript para disponibilizar a propriedade photos com o resultado de PhotoListResolver:
+
+path: 'user/:userName',
+component: PhotoListComponent,
+resolve: {
+    photos: PhotoListResolver
+}COPIAR CÓDIGO
+E em photo-list.component.ts, deletaremos o seguinte trecho, que passa a ser desnecessário:
+
+const userName = this.activatedRoute
+    .snapshot
+    .params
+    .userName;
+
+this.photoService
+    .listFromUser(userName)
+    .subscribe(photos => this.photos = photos);COPIAR CÓDIGO
+Em consequência, removeremos também private photoService: PhotoService em constructor(), e o seu respectivo importe. Em ngOnInit(), incluiremos this.photos = this.activatedRoute.snapshot.data.photos, cujo snapshot.data nos permite acessar o valor contido em photos de app.routing.module.ts.
+
+Também é possível usar this.activatedRoute.snapshot.data['photos'].
+
+Com isso indicamos que é preciso buscar dados em photos, nome da propriedade usada no Routes, para esta rota que foi ativada. Salvaremos tudo, voltaremos ao navegador e acessaremos localhost:4200/user/flavio. As imagens são buscadas, e então recarregaremos a página e, em nenhum momento, a mensagem "Sorry, no photos" é exibida, pois os dados são resolvidos no sistema de rotas.
+
+Esta é a motivação por trás do Resolver — a resolução de dados assíncronos dos quais o componente depende antes de ser ativado, no momento em que ativamos a rota, antes mesmo dela avaliar tal componente.
+
+
+RxJS e seu Subject
+
+Melhoramos a experiência do usuário, agora vamos fazer o mesmo em relação à performance da aplicação. Como estamos disparando o evento keyup, a cada preenchimento do campo de busca o valor digitado será passado para filter, e deste para o Pipe. Então, a cada caractere digitado é feita a aplicação do filtro, e isso prejudica a performance, ainda mais se a quantidade de imagens é muito grande. Pior ainda se estivéssemos realizando requisição AJAX ao servidor.
+
+Seria melhor se, ao digitarmos "farol", fizéssemos uma pausa de 300ms, e aí sim o Pipe fosse aplicado. A vantagem disto é que evitamos a execução de uma série de operações. Para tal, usaremos um Pattern muito comum no JavaScript, para que o filtro seja atualizado somente se pararmos de digitar durante um determinado período de tempo.
+
+A chave para o sucesso desta operação é o Subject do RxJS. Em photo-list.component.ts, criaremos inicialmente a propriedade debounce na classe PhotoListComponent, de tipo Subject, por sua vez do tipo string, que receberá um novo Subject, os quais precisarão ser importados.
+
+Por meio de next(), é possível emitirmos um valor para Subject, que acessamos caso o tenhamos inscrito. Diferentemente do Observable, com o qual podemos inscrever e obter valores, com o Subject podemos, além disso, emitir um valor e escutá-lo, como em:
+
+export class PhotoListComponent implements OnInit {
+
+    photos: Photo[] = [];
+    filter: string = '';
+    debounce: Subject<string> = new Subject<string>();
+
+    constructor(private activatedRoute: ActivatedRoute) { }
+
+    ngOnInit(): void {
+        this.photos = this.activatedRoute.snapshot.data['photos'];
+
+        this.debounce.next('f')
+        this.debounce.subscribe(value => alert(value));
+    }
+}COPIAR CÓDIGO
+Do trecho acima, deletaremos o que se segue:
+
+this.debounce.next('f')
+this.debounce.subscribe(value => alert(value));COPIAR CÓDIGO
+E em photo-list.component.html, no lugar de colocarmos o valor digitado em filter, solicitaremos ao debounce para que seja feito o next(). A cada keyup será emitido um valor:
+
+<input
+    class="rounded"
+    type="search"
+    placeholder="search..."
+    autofocus
+    (keyup)="debounce.next($event.target.value)"
+>COPIAR CÓDIGO
+Voltaremos a photo-list.component.ts, em ngOnInit() nos inscreveremos em debounce, e o valor a ser emitido ali será chamado de filter, o qual receberemos, e então indicaremos que this.filter receberá filter.
+
+ngOnInit(): void {
+    this.photos = this.activatedRoute.snapshot.data['photos'];
+    this.debounce.subscribe(filter => this.filter = filter);
+}COPIAR CÓDIGO
+Com isso, em vez de jogarmos o valor digitado diretamente em filter, emitiremos um valor de RxJS, a ser escutado pelo subscribe(), o qual atualizará o filtro. O subscribe() será chamado enquanto o valor estiver sendo emitido. Ele é um tanto diferente do HttpClient pois este emite um único valor, e o completa, algo que não ocorre com Subject, por termos criado-o.
+
+Tanto isto é verdade que, se voltarmos ao navegador e recarregarmos a página, o filtro funcionará bem, mesmo sem vantagens, já que estamos tendo mais trabalho, pois pegamos o valor digitado pelo usuário, passando-o para o debounce para que o Subject emita o valor por meio de next(). Tivemos que fazer o subscribe() para então levarmos o valor adiante.
+
+Assim, em photo-list.component.ts importaremos debounceTime de rxjs/operators, junto ao qual uma série de operadores poderá ser importada. A ideia é que, antes do subscribe(), pediremos para o debounce aplicar tal operação, com a estrutura pipe(), em que incluiremos debounceTime, a receber o período de tempo. E desta operação faremos o subscribe().
+
+ngOnInit(): void {
+    this.photos = this.activatedRoute.snapshot.data['photos'];
+    this.debounce
+        .pipe(debounceTime(300))
+        .subscribe(filter => this.filter = filter);
+}COPIAR CÓDIGO
+A grande sacada é que, com esta alteração chamada de Lettable operators no RxJS, por usarmos o debounceTime, quando emitimos um valor no evento keyup, todas as emissões serão ignoradas, sendo consideradas após 300ms. E é isso que será repassado ao subscribe().
+
+O Observable é engenhoso para lidar com situações deste tipo, com fluxos e eventos, e colocamos threshold, um Pipe no que chamamos de debounce, para limitar a quantidade de operações.
+
+Resolvemos o problema de performance, porém ganhamos outro se não tomarmos cuidado: uma vez que o Observable em .subscribe(filter => this.filter = filter) nunca se completa, ele ficará guardando um espaço na memória, e se saímos deste componente e vamos a outra página, a área da memória continuará ocupada, ocasionando em memory leaking (vazamento de memória).
+
+Então, toda vez que houver algo que fique emitindo valores infinitamente, é necessário implementar uma interface, OnDestroy, que também precisa ser implementada em photo-list.component.ts. Ao fazermos isto, o método ngOnDestroy() é acrescentado. Ele faz parte do ciclo de vida de um componente do Angular, sendo chamado toda vez que um objeto é destruído.
+
+Significa que quando sairmos de PhotoListComponent, e ele for destruído, o método será chamado, e faremos o unsubscribe():
+
+export class PhotoListComponent implements OnInit, OnDestroy {
+
+    /* código omitido
+    */
+
+    ngOnInit(): void {
+        this.photos = this.activatedRoute.snapshot.data['photos'];
+        this.debounce
+        .pipe(debounceTime(300))
+        .subscribe(filter => this.filter = filter);
+    }
+
+    ngOnDestroy(): void {
+        this.debounce.unsubscribe();
+    }
+}COPIAR CÓDIGO
+Trata-se de uma boa prática, portanto não deixemos de fazê-lo.
+
+
+LoadButton
+
+
+Criaremos o botão "Load more" como sendo um componente em "photo-list", portanto voltaremos ao terminal e pausaremos o Angular CLI. Usaremos o atalho ng g c photos/photo-list/load-button, em que c se refere a component e g a generate para gerarmos o "load-button".
+
+A primeira propriedade que ele terá é hasMore, de tipo boolean, que começará com false. Isto nos ajudará a saber se há mais elementos a serem exibidos, ou não. Em load-button.component.ts, teremos:
+
+export class LoadButtonComponent implements OnInit {
+
+    hasMore: boolean = false;
+
+    constructor() { }
+
+    ngOnInit() {
+    }
+
+}COPIAR CÓDIGO
+Apagaremos o conteúdo de load-button.component.html e incluiremos o seguinte código:
+
+<div class="text-center">
+    <button class="btn btn-primary">Load more</button>
+</div>
+
+<p class="text-center text-muted">No more data to load</p>COPIAR CÓDIGO
+Com isso, teremos uma <div> centralizada, que exibirá nosso botão, e usamos a classe btn do Bootstrap, bem como btn-primary, para que ele tenha destaque, e os textos "Load more" e "No more data to load". Quem for utilizar o componente em load-button.component.ts receberá o hasMore, um booleano. Em selector, não podemos esquecer de remover um "p" de app-load-button, mantendo simplesmente ap-load-button.
+
+Se queremos passar um parâmetro via forma declarativa do componente, precisaremos utilizar @Input(), que importaremos. E em photo-list.component.html, já que incluiremos o botão após a listagem de imagens, adicionaremos:
+
+<ap-load-button></ap-load-button>COPIAR CÓDIGO
+Salvaremos, subiremos a aplicação no terminal e verificaremos o resultado no navegador, um botão azul de cantos arredondados contendo o texto "Load more" centralizado, junto a "No more data to load" logo abaixo, sendo que isto deveria ser condicional — se há dados a serem exibidos, o botão deve aparecer. Caso contrário, apenas o texto de baixo.
+
+Para lidarmos com esta situação, incluiremos na <div> de load-button.component.html a diretiva *ngIf, que já conhecemos, e a condição será hasMore. Significa que, se hasMore ("há mais"), que começa com valor falso, será exibido o botão. Se não, o texto.
+
+O Angular permite uma estrutura if/else no template, e aquele que estiver no else precisará estar dentro da tag <ng-template>. Assim, adicionaremos nele uma variável de template capaz de identificá-lo, podendo ter um nome qualquer. Neste caso, será utilizado messageTemplate.
+
+Poderíamos colocar esta variável no botão, mas optaremos por fazê-lo no template.
+
+<div class="text-center" *ngIf="hasMore; else messageTemplate">
+    <button class="btn btn-primary">Load more</button>
+</div>
+
+<ng-template #messageTemplate>
+    <p class="text-center text-muted">No more data to load</p>
+</ng-template>COPIAR CÓDIGO
+Salvaremos e retornaremos ao navegador, que exibe "No more data to load" ao final da página, pois o valor padrão de hasMore é false, então, o trocaremos por true e testaremos novamente. Desta vez, o texto será substituído pelo botão.
+
+Em photo-list.component.html será necessário realizar Data binding em uma propriedade, para que seja indicado se há mais ou não. Em photo-list.component.ts, também incluiremos a propriedade hasMore, que começará recebendo false:
+
+photos: Photo[] = [];
+filter: string = '';
+debounce: Subject<string> = new Subject<string>();
+hasMore: boolean = false;COPIAR CÓDIGO
+E então, faremos em photo-list.component.html uma associação de hasMore com a expressão homônima:
+
+<ap-load-button [hasMore]="hasMore"></ap-load-button>COPIAR CÓDIGO
+Ou seja, a inbound property do botão fará um Data binding com o hasMore de photo-list.component.ts. Cada vez que clicarmos no botão, um load ("carregamento") será realizado, e então verificaremos se os dados chegaram. Caso positivo, significa que hasMore se mantém true. Caso contrário, e se tivermos um array vazio, é porque fomos além de sua capacidade.
+
+Portanto, precisaremos do photoService de volta, para que seja acessado a cada clique do botão. Além disso, criaremos a propriedade currentPage de tipo number, que começará com 1, e userName de tipo string, pois precisaremos saber disso toda vez que os dados forem lidos.
+
+hasMore: boolean = false;
+currentPage: number = 1;
+userName: string = '';
+
+constructor(
+    private activatedRoute: ActivatedRoute,
+    private photoService: PhotoService
+) { }COPIAR CÓDIGO
+Agora, no ato de pegarmos os dados, indicaremos que this.userName recebe this.activatedRoute.snapshot.params.userName, e em breve entenderemos o porquê de guardarmos tantos valores. Também criaremos o método load(), que chamará this.photoService.listFromUserPaginated. Usaremos ++ pois, quando carregamos a página pela primeira vez, o Resolver já carregou a primeira página, então quando damos load é porque queremos carregar a segunda. Trata-se de um pré-incremento, e em seu subscribe() receberemos photos.
+
+Também em subscribe() fazemos uma desestruturação, ou Destructuring, na verdade, um Spread Operator, para informar que photos será desmembrado como se passássemos os dados de cada item retornado do back end. Testaremos se photos.length é diferente de this.hasMore e, neste caso, seu valor será false.
+
+ngOnInit(): void {
+    this.userName = this.activatedRoute.snapshot.params.userName;
+    this.photos = this.activatedRoute.snapshot.data['photos'];
+    this.debounce
+        .pipe(debounceTime(300))
+        .subscribe(filter => this.filter = filter);
+}
+
+ngOnDestroy(): void {
+    this.debounce.unsubscribe();
+}
+
+load() {
+    this.photoService
+        .listFromUserPaginated(this.userName, ++this.currentPage)
+        .subscribe(photos => {
+            this.photos.push(...photos);
+            if(!photos.length) this.hasMore = false;
+        });
+}COPIAR CÓDIGO
+Feito isso, vamos substituir false de hasMore: boolean = false para true. Ao carregarmos a página, o botão aparecerá mas, quando clicado, o método load() será chamado, o que alterará o estado do componente, podendo ou não alterar o hasMore. Precisaremos acessar photo-list.component.html e chamar este método por meio de um binding para o evento click, usando parênteses.
+
+<ap-load-button
+    (click)="load()"
+    [hasMore]="hasMore">
+</ap-load-button>COPIAR CÓDIGO
+Salvaremos tudo e voltaremos ao navegador para testarmos. Quando clicamos no botão, a mensagem "No more data to load" é exibida, e aparentemente funciona bem. Na tag <ap-photos> de photo-list.component.html realizamos um Data binding de photos para a propriedade photos de photo-list.component.ts, da classe PhotoListComponent.
+
+O problema é que quando fazemos o push(), a cada item incluso ali dentro, o outro componente não sabe que photos é alterado. Isto porque não modificamos a referência this.photos. Estamos mudando os itens da lista de imagens, entretanto o photos.component.ts não sabe que photos mudou. Isso só aconteceria se fosse atribuído outro valor nesta propriedade.
+
+Para resolvermos isso, em load() de photo-list.component.ts, usaremos this.photos = this.photos.concat(photos) em vez de this.photos.push(...photos). O concat() acessará a lista de imagens existente (this.photos) e a concatenará com a lista photos, gerando outra, que será uma nova referência. Com isto, o mecanismo de Change detection do Angular funcionará.
+
+Se salvarmos e voltarmos ao navegador, ao clicarmos no botão, o restante das imagens da lista será apresentado. E se clicarmos mais uma vez, o texto "No more data to load" aparecerá.
+
+Entendemos que precisamos nos atentar a estes casos de Data binding, em que o Angular só detecta alteração em uma inbound property quando há uma nova atribuição nela.
+
+
+Submódulos
+
+
+Todos os componentes contidos na pasta "photos", e nas suas subpastas, como "photo-form" e "photo-list", fazem parte de photos.module.ts. No entanto, eventualmente começaremos a ter uma quantidade muito grande de artefatos em declarations deste arquivo, que precisarão ser importados à medida em que formos criando componentes que dizem respeito a imagens.
+
+Por exemplo, sabemos que LoadButtonComponent, PhotoListComponent e PhotosComponent fazem parte do mesmo conjunto. Neste sentido, criaremos submódulos para deixar o nosso código ainda mais organizado. Manualmente, criaremos o módulo photo-list.module.ts em "photo-list", em que teremos a seguinte estrutura:
+
+import { NgModule } from '@angular/core';
+import { PhotoListComponent } from './photo-list.component';
+import { PhotosComponent } from './photos/photos.component';
+import { LoadButtonComponent } from './load-button/load-button.component';
+
+@NgModule({
+    declarations: [
+        PhotoListComponent,
+        PhotosComponent,
+        LoadButtonComponent
+    ]
+})
+export class PhotoListModule {}COPIAR CÓDIGO
+Em "photo-form" criaremos o módulo photo-form.module.ts:
+
+import { NgModule } from '@angular/core';
+import { PhotoFormComponent } from './photo-form.component';
+
+@NgModule({
+    declarations: [PhotoFormComponent]
+})
+export class PhotoFormModule { }COPIAR CÓDIGO
+Da mesma forma, em "photo" criaremos photo.module.ts:
+
+import { NgModule } from '@angular/core';
+import { PhotoComponent } from './photo.component';
+
+@NgModule({
+    declarations: [PhotoComponent]
+})
+export class PhotoModule { }COPIAR CÓDIGO
+E em photo-list.module.ts acrescentaremos FilterByDescription em declarations. Em seguida, abriremos photos.module.ts, removeremos todo o conteúdo de declarations, e alteraremos imports. Desta forma, ele funcionará como um agregador dos elementos importados para que outro módulo também possa importá-los.
+
+@NgModule({
+    imports: [
+        PhotoModule,
+        PhotoFormModule,
+        PhotoListModule,
+        HttpClientModule,
+        CommonModule
+    ]
+})COPIAR CÓDIGO
+Se voltarmos ao navegador, o console acusará um erro em PhotosComponent, pois as diretivas *ngFor e *ngIf estão sendo utilizadas em photos.component.html, porém seu módulo (photo-list.module.ts) precisará fazer a importação de CommonModule:
+
+@NgModule({
+    declarations: [
+        PhotoListComponent,
+        PhotosComponent,
+        LoadButtonComponent,
+        FilterByDescription
+    ],
+    imports: [ CommonModule ]
+})COPIAR CÓDIGO
+Sabemos que é uma boa prática importar CommonModule em todos os módulos, então o importaremos também em photo-form.module.ts. Por fim, o removeremos dos importes em photos.module.ts, juntamente com HttpClientModule, pois seu único dependente até o momento é "photo". Iremos a photo.module.ts e o acrescentaremos dentre os importes:
+
+@NgModule({
+    declarations: [PhotoComponent],
+    imports: [
+        CommonModule,
+        HttpClientModule
+    ]
+})COPIAR CÓDIGO
+Esse trabalho todo é necessário porque, agora, ao lidarmos com os módulos e submódulos, sabemos com clareza do que cada módulo precisa para funcionar. Vamos testar no navegador? Ao carregarmos, teremos outro problema — photo-list.component.html usa <ap-photos>, enquanto photos.component.html usa <ap-photo>, que está indisponível por não ter sido carregado em seu módulo.
+
+Então, em photo-list.module.ts importaremos CommonModule, sabendo que um dos componentes que temos dependerá de PhotoComponent, portanto precisamos importar PhotoModule também. Salvaremos as alterações, voltaremos ao navegador e, ao rodarmos, continuamos tendo problemas. Isso porque o módulo que estamos importando não exporta PhotoComponent.
+
+Abriremos photo.module.ts e incluiremos em @NgModule:
+
+exports: [ PhotoComponent ]COPIAR CÓDIGO
+Será que isso é o suficiente? No navegador, tudo parece funcionar bem, e o console já não acusa nenhum erro. Esta parte de organização é uma revisão do que aprendemos sobre módulos, além de melhorarmos a compreensão do funcionamento do projeto como um todo. Entendemos que cada componente criado em "photos" muito provavelmente será um módulo, e não é ruim fazermos isso, mesmo que tenhamos apenas um deles.
+
+Outra curiosidade é que photo-form.module.ts não possui nada em declarations. Mas não usamos PhotoFormComponent no arquivo de rotas? Não precisamos exportá-lo? Não, pois para declarations, só precisaríamos incluir PhotoFormComponent em exports caso ele fosse utilizado no template de outro componente. E photo-list.module.ts não exporta nada, e por ora não há nenhum outro local da aplicação que esteja interessado em usar qualquer um dos elementos em declarations isoladamente.
+
+O TypeScript não remove automaticamente os importes inutilizados, portanto precisamos lembrar de fazê-lo manualmente.
+
+
+Integração com Font Awesome
+
+
+Vamos incluir um ícone de lupa ao lado do campo de busca na nossa aplicação. Até a versão 3 do Bootstrap, o Glyphicons, um conjunto de fontes disponíveis para uso, já vinha embutido. A partir da versão 4 do Bootstrap, não houve indicação sobre qual pacote de fontes poderia ser utilizado, sendo necessária sua instalação manual.
+
+Contudo optaremos pelo Font Awesome, que possui as versões paga e gratuita. A gratuita supre muito bem nossas necessidades, portanto pausaremos o Angular CLI via terminal, e com npm install font-awesome@4.7.0 instalaremos a versão 4.7.0. Já que usamos a versão 8 (ou superior) do Node, não precisamos incluir -s no comando, mas é possível fazê-lo para que ele seja salvo no pacote JSON também.
+
+Confirmaremos se a instalação foi bem sucedida abrindo package.json, com todas as dependências do projeto, e buscando por "font-awesome" na listagem. Ele tem um CSS que precisa ser carregado para que as fontes sejam de fato disponibilizadas para a aplicação. Como dito anteriormente, CSSs globais como o Bootstrap, que são carregados e disponíveis para todos os componentes da página, precisam ser registrados em angular.json.
+
+Neste arquivo, temos o caminho do Bootstrap, "./node_modules/bootstrap/dist/css/bootstrap.min.css", em styles. Precisaremos do caminho referente ao Font Awesome: "./node_modules/font-awesome/css/font-awesome.css".
+
+"./node_modules/bootstrap/dist/css/bootstrap.min.css" pode ficar sem o min, pois no processo de build do Angular, ao ser gerado para produção, ele será minificado de qualquer forma.
+
+Salvaremos, e não podemos esquecer que ao alterarmos angular.json temos que reiniciar o Angular CLI pelo terminal. Mas como ele já está parado, não há problema algum. Vamos subí-lo novamente com ng serve --open e verificar se há algum erro no console do navegador.
+
+Quando trabalhamos com Angular CLI, é preferível trabalhar com uma máquina com HD SSD, para facilitar o build.
+
+Abriremos photo-list.component.html de "photos", usaremos a tag <i> e a classe fa fa-search mr-1, proveniente da documentação do Font Awesome, em que fa remete a "Font Awesome" e search, ao nome do ícone. Além disso, podemos acrescentar aria-hidden="true", pois é boa prática indicar que leitores de tela ignorem ícones, também recomendado na documentação do próprio Font Awesome.
+
+<i aria-hidden="true" class="fa fa-search mr-1"></i>COPIAR CÓDIGO
+Vamos continuar mexendo na estética da nossa página diminuindo o espaçamento entre as imagens, pois quando diminuímos a tela, o espaço fica ainda maior, e nada harmonioso. Para resolvermos isto, acessaremos photos.component.html e, ao lado de row incluiremos no-gutters ("sem espaçamento"), deixando a linha assim:
+
+<li *ngFor="let cols of rows" class="row no-gutters">
+
+
+Component container e ng-content
+
+Assim como várias redes sociais possuem compartilhamento e exibição de fotos, seria interessante se houvesse um número de curtidas para cada uma delas. A boa notícia é que, se checarmos a interface que define a forma da API, na qual acessamos os dados retornados por ela, teremos likes e comments.
+
+Eles se encontram vazios, mas se tivéssemos interações na nossa aplicação, estariam disponíveis. Queremos que tais informações sejam exibidas logo após as imagens. Como faremos isso?
+
+O componente responsável pela renderização das imagens é photos.component.ts e, em seu template, colaremos as seguintes linhas logo após a tag de fechamento de <ap-photo>:
+
+<i aria-hidden="true" class="fa fa-heart-o fa-1x mr-2"></i>{{ photo.likes }}
+<i aria-hidden="true" class="fa fa-comment-o fa-1x mr-2 ml-2"></i>{{ photo.comments }}COPIAR CÓDIGO
+Com isso, acrescentamos dois ícones de Font Awesome, um de coração e outro de balão de fala (para comentário), ambos com tamanho 1x. Também fazemos o Data binding por meio de interpolação, para photos.likes e photo.comments. Se salvarmos e voltarmos ao navegador, eles aparecem abaixo de cada imagem, como gostaríamos.
+
+Mas isso pode ficar ainda melhor se incluirmos as linhas entre <div>s centralizadas:
+
+<div class="text-center">
+    <i aria-hidden="true" class="fa fa-heart-o fa-1x mr-2"></i>{{ photo.likes }}
+    <i aria-hidden="true" class="fa fa-comment-o fa-1x mr-2 ml-2"></i>{{ photo.comments }}
+</div>COPIAR CÓDIGO
+Além disso, podemos melhorar a exibição de cada imagem e seus respectivos botões colocando-os em um card.
+
+No Bootstrap 3, era preciso utilizar panels, mas a partir da versão posterior eles se tornaram cards.
+
+A estrutura de um card com borda suave e conteúdo centralizado é a seguinte:
+
+<div class="card border-light text-center">
+    <h4 class="card-header">TITULO DO CARD</h4>
+    <div class="card-block text-justify">
+        <!-- aqui entra o conteúdo -->
+    </div>
+</div>COPIAR CÓDIGO
+Um card pode ter cabeçalho com título, e um corpo com texto justificado. Iremos componentizar este card para podermos utilizá-lo em qualquer módulo, independentemente do projeto. Não podemos criá-lo dentro de "photos", pois assim o atrelaremos ao universo de imagens, e não é este o caso.
+
+No entanto, cards são compartilháveis, podendo ser utilizados em outros locais e com outros módulos. Sendo assim, criaremos em "app" a pasta "shared", e nela, a pasta "components", dentro da qual teremos subpastas de todos os componentes compartilháveis pela aplicação. No caso, criaremos "card", que conterá card.component.ts e card.component.html.
+
+No primeiro arquivo, teremos:
+
+import { Component } from '@angular/core';
+
+@Component({
+    selector: 'ap-card',
+    templateUrl: './card.component.html'
+})
+export class CardComponent { 
+    @Input() title: string = '';
+}COPIAR CÓDIGO
+E em seu template:
+
+<div class="card border-light text-center">
+    <h4 class="card-header">{{ title }}</h4>
+    <div class="card-block text-justify">
+    </div>
+</div>COPIAR CÓDIGO
+Nele, o title é pego da inbound property de card.component.ts e, na <div> com card-block, deve-se pegar o conteúdo do card em si. Em seguida, também criaremos dentro de "card" o módulo card.module.ts, pois se este card será compartilhado em diversos locais, ele deverá ser importado. Porém, um componente não pode fazer parte da declaração de mais de um módulo.
+
+Isso significa que, se "errors" e "photos" incluírem o card em declarations, teremos problemas, e o componente não poderá ser exportado ali por não ser um módulo. Então, mesmo que tenhamos um único componente, o transformaremos em módulo para conseguirmos importá-lo em todos os locais que precisarem utilizá-lo.
+
+Assim, em card.module.ts, digitaremos e salvaremos o seguinte:
+
+import { NgModule } from '@angular/core';
+import { CardComponent } from './card.component';
+
+@NgModule({
+    declarations: [CardComponent],
+    exports: [CardComponent]
+})
+export class CardModule { }COPIAR CÓDIGO
+Como queremos utilizar este card em "photos > photos > photo-list.module.ts", teremos que acessar photos.module.ts e importar CardModule:
+
+imports: [
+    CommonModule,
+    PhotoModule,
+    CardModule
+]COPIAR CÓDIGO
+E por falar nisso, já vimos que todo módulo criado precisa importar CommonModule para que as diretivas do Angular funcionem corretamente. Em card.module.ts, então, teremos:
+
+@NgModule({
+    declarations: [CardComponent],
+    exports: [CardComponent],
+    imports: [CommonModule]
+})COPIAR CÓDIGO
+Recapitulando: o CardModule depende de CommonModule e exporta CardComponent. E em "photos > photo-list > photo-list.module.ts" indicamos que precisamos de CardModule, pois este componente exportado pelo card será utilizado por PhotosComponent.
+
+Vamos acessar photos.component.html, incluir <ap-card> e mover as tags <ap-photo> e <div> para dentro dela. Por ora, nosso card não terá título, pois estamos utilizando-o por motivos de organização. Então, dentro do card exibimos a imagem, e incluiremos um padding de valor 1 para todos os lados.
+
+<div *ngFor="let photo of cols" class="col-4">
+    <ap-card>
+        <ap-photo
+            [url]="photo.url"
+            [description]="photo.description">
+        </ap-photo>
+        <div class="text-center p-1">
+            <i aria-hidden="true" class="fa fa-heart-o fa-1x mr-2"></i>{{ photo.likes }}
+            <i aria-hidden="true" class="fa fa-comment-o fa-1x mr-2 ml-2"></i>{{ photo.comments }}
+        </div>
+    </ap-card>
+</div>COPIAR CÓDIGO
+Ao salvarmos e voltarmos ao navegador, teremos uma surpresa: nada é exibido. Podemos adicionar title="Flavio" em <ap-card>, e o texto será exibido em todos os cards, porém não seu conteúdo. Isto porque em nenhum momento indicamos que no componente criado em card.component.html deve estar o conteúdo que for colocado em <ap-card>. Para isso, utilizamos a diretiva ng-content:
+
+<div class="card-block text-justify">
+    <ng-content></ng-content>
+</div>COPIAR CÓDIGO
+Isso resolverá nosso problema e, se quisermos, podemos voltar à listagem em photos.component.html e incluir title="photo.description" com Data binding (caso contrário a string é que aparecerá): <ap-card [title]="photo.description">. Salvaremos as alterações, e teremos as imagens sendo exibidas com sucesso, cada qual com o título correspondente. Podemos deletar o título, que incluímos apenas para fins de teste.
+
+Conseguimos criar nosso primeiro componente que aceita receber conteúdo entre abertura e fechamento de
+tags.
+
+ Precisamos indicar, no elemento pai, o local no qual os elementos filhos serão adicionados e fazemos isso através
+ de ng-content.
+
+ Componentizando o filtro
+
+
+ O template de photo-list.component.html possui a primeira <div> correspondendo ao topo da página com o campo de busca, e na página temos <ap-load-button>, <ap-photos>, e a parte de search (busca), certo?
+
+Com o Angular, a ideia é que tenhamos o mínimo possível de HTML para trabalhar. Sendo assim, esta primeira <div> é um forte candidato a se tornar um componente. É o que faremos — componentizaremos o máximo que pudermos para melhorar a legibilidade e manutenção do nosso código.
+
+Já que esta área de busca será exclusiva a "photo-list", criaremos nela uma pasta denominada "search", com o componente search.component.ts e o template search.component.html. O primeiro terá o seguinte conteúdo:
+
+@Component({
+    selector: 'ap-search',
+    templateUrl: './search.component.html'
+})
+export class SearchComponent {  }COPIAR CÓDIGO
+Recortaremos de photo-list.component.html a <div> referente à caixa de busca, e a colaremos em search.component.html, salvando-o em seguida:
+
+<div class="">
+    <form>
+        <i aria-hidden="true" class="fa fa-search mr-1"></i>
+        <input
+            class="rounded"
+            type="search"
+            placeholder="search..."
+            autofocus
+            (keyup)="debounce.next($event.target.value)"
+        >
+    </form>
+</div>COPIAR CÓDIGO
+Em photo-list.component.ts há o debounce para lidar com a questão da digitação do input, não mais necessário, portanto moveremos a linha debounce: Subject<string> = new Subject<string>(); e deletaremos import { Subject } from 'rxjs';, e deixaremos SearchComponent de search.component.ts do seguinte modo:
+
+export class SearchComponent {
+
+    debounce: Subject<string> = new Subject<string>();
+}COPIAR CÓDIGO
+Em seguida, removeremos o trecho a seguir de ngOnInit() do photo-list.component.ts:
+
+this.debounce
+    .pipe(debounceTime(300))
+    .subscribe(filter => this.filter = filter);COPIAR CÓDIGO
+E faremos o mesmo com
+
+ngOnDestroy(): void {
+    this.debounce.unsubscribe();
+}COPIAR CÓDIGO
+Com isso, simplificamos o componente. Poderemos deletar também os importes de debounceTime e OnDestroy, e a exportação deste. E precisaremos adicionar o debounce no ngOnInit() de search.component.ts, não esquecendo de importá-lo. Incluiremos implements OnInit na clase SearchComponent, e removeremos as demais linhas de ngOnInit().
+
+Então, implementaremos OnDestroy, e em ngOnDestroy() incluiremos o unsubscribe de debounce. O arquivo ficará assim:
+
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
+
+@Component({
+    selector: 'ap-search',
+    templateUrl: './search.component.html'
+})
+export class SearchComponent implements OnInit, OnDestroy {
+
+    debounce: Subject<string> = new Subject<string>();
+
+    ngOnInit(): void {
+        this.debounce
+        .pipe(debounceTime(300));
+    }
+    ngOnDestroy(): void {
+        this.debounce.unsubscribe();
+    }
+}COPIAR CÓDIGO
+Salvaremos, abriremos photo-list.component.html e incluiremos, no topo do código, de modo a termos três componentes:
+
+<ap-search></ap-search>COPIAR CÓDIGO
+Salvaremos tudo, abriremos o navegador e obteremos um erro que aponta que faltou acrescentarmos SearchComponent no NgModule de photo-list.module.ts. Além disso, ao testarmos o campo de pesquisa, notaremos que o filtro não funciona. Temos um componente isolado que precisa se comunicar com outro. Isto é, para interagirmos com o <ap-search> de photo-list.component.html, ele precisa se comunicar com photo-list.component.ts, pois ele precisa atualizar a propriedade filter para que o filtro de fato funcione.
+
+Como faremos essa comunicação entre componentes hierarquicamente organizados?
+
+Criando a primeira diretiva
+
+Pensando em outra melhoria, ao passarmos o mouse sobre cada card, podemos fazer com que ele ganhe um tom mais escuro para dar destaque. Poderíamos utilizar a pseudo class hover do CSS, não é? Mas e se quisermos aplicar o mesmo efeito na lupa, ou no placeholder "search" no campo de busca, ou em qualquer outro componente existente em nossa aplicação?
+
+Teríamos que repetir o CSS, mas a ideia é pegarmos o comportamento desejado, o qual não pertence a nenhum componente em específico, e isolá-lo em um único local. Para isso, criaremos nossa primeira diretiva, a Custom Directive.
+
+Todo componente é uma diretiva. A diferença é que @Component, por exemplo, está atrelado a um template, o que não ocorre com a diretiva.
+
+Então, criaremos uma pasta em "shared" chamada "directives", em que colocaremos todas as diretivas. Nela, também criaremos uma pasta denominada "darken-on-hover", dentro da qual criaremos a primeira diretiva. Se tivermos outra diretiva, criaremos outra pasta, e assim por diante, isso porque ainda não estamos trabalhando com arquivos de testes, ou similares.
+
+Criaremos o módulo desta diretiva, darken-on-hover.module.ts, em "darken-on-hover", no qual também criaremos darken-on-hover.directive.ts — isso não é muito diferente do que fizemos até então.
+
+No arquivo da diretiva, teremos:
+
+import { Directive } from '@angular/core';
+
+@Directive({
+    selector: ''
+})
+export class DarkenOnHoverDirective { }COPIAR CÓDIGO
+Neste caso, a diretiva será utilizada da seguinte forma: se tivermos um componente <a>, por exemplo, e queremos aplicar o efeito de escurecimento ao passarmos o mouse sobre ele, poderemos digitar algo como <a apDarkOnHover></a>. Isto é, usaremos a diretiva como se fosse um atributo, diretamente na tag ou componente. No entanto, para tal, teremos que colocar seu selector entre colchetes:
+
+@Directive({
+    selector: '[apDarkenOnHover]'
+})COPIAR CÓDIGO
+Enquanto isso, o conteúdo de darken-on-hover.module.ts será:
+
+import { NgModule } from '@angular/core';
+import { DarkenOnHoverDirective } from './darken-on-hover.directive';
+
+@NgModule({
+    declarations: [ DarkenOnHoverDirective ],
+    exports: [ DarkenOnHoverDirective ]
+})
+export class DarkenOnHoverModule { }COPIAR CÓDIGO
+Em "photo-list > photos > photos.component.html" incluiremos a diretiva apDarkenOnHover na <div>, que é onde queremos aplicar este efeito. Veremos mais detalhes sobre esta implementação a seguir.
